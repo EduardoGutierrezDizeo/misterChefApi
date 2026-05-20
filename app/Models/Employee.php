@@ -1,0 +1,52 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Laravel\Sanctum\HasApiTokens;
+
+class Employee extends Authenticatable
+{
+    use HasApiTokens;
+
+    protected $table = 'employee';
+    protected $primaryKey = 'document_employee';
+    public $keyType = 'string';
+    public $incrementing = false;
+    public $timestamps = false;
+
+    protected $fillable = [
+        'document_employee',
+        'name_1',
+        'name_2',
+        'last_name_1',
+        'last_name_2',
+        'phone_number',
+        'status',
+        'email',
+        'password',
+        'type',
+        'commission_percentage',
+        'hire_date',
+        'can_modify_invoice',
+    ];
+
+    protected $hidden = [
+        'password',
+    ];
+
+    protected $casts = [
+        'hire_date' => 'date',
+        'commission_percentage' => 'decimal:2',
+    ];
+
+    public function clients()
+    {
+        return $this->hasMany(Client::class, 'document_employee', 'document_employee');
+    }
+
+    public function routes()
+    {
+        return $this->hasMany(Route::class, 'document_employee', 'document_employee');
+    }
+}
