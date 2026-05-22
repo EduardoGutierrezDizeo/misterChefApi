@@ -34,4 +34,9 @@ class Invoice extends Model
     {
         return $this->hasMany(Detail::class, 'id_invoice', 'id_invoice');
     }
+
+    public function audits()
+{
+    return $this->hasMany(AuditInvoice::class, 'id_invoice', 'id_invoice');
+}
 }

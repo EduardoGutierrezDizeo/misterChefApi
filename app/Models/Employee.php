@@ -49,4 +49,9 @@ class Employee extends Authenticatable
     {
         return $this->hasMany(Route::class, 'document_employee', 'document_employee');
     }
+
+    public function auditInvoices()
+{
+    return $this->hasMany(AuditInvoice::class, 'document_employee', 'document_employee');
+}
 }
