@@ -7,6 +7,7 @@ use App\Http\Controllers\ClientController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\RouteController;
+use App\Http\Controllers\EmployeeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -41,6 +42,13 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/clients/{id}',             [ClientController::class, 'show']);
     Route::put('/clients/{id}',             [ClientController::class, 'update']);
     Route::patch('/clients/{id}/status',    [ClientController::class, 'changeStatus']);
+
+    // Empleados
+    Route::get('/employees',                [EmployeeController::class, 'index']);
+    Route::post('/employees',               [EmployeeController::class, 'store']);
+    Route::get('/employees/{id}',           [EmployeeController::class, 'show']);
+    Route::put('/employees/{id}',           [EmployeeController::class, 'update']);
+    Route::patch('/employees/{id}/status',  [EmployeeController::class, 'changeStatus']);
 
     // Facturas
     Route::get('/invoices',                   [InvoiceController::class, 'index']);
