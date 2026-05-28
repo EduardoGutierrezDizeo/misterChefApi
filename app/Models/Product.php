@@ -25,7 +25,7 @@ class Product extends Model
     protected $casts = [
         'stock' => 'integer',
         'minimun_stock' => 'integer',
-        'selling_price' => 'decimal:2',
+        'selling_price' => 'float',
     ];
 
     public function productType()

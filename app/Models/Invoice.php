@@ -22,7 +22,7 @@ class Invoice extends Model
 
     protected $casts = [
         'date' => 'date',
-        'total' => 'decimal:2',
+        'total' => 'float',
     ];
 
     public function client()
