@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Route extends Model
+class DeliveryRoute extends Model
 {
     protected $table = 'routes';
     protected $primaryKey = 'id_ruta';

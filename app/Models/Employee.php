@@ -47,11 +47,21 @@ class Employee extends Authenticatable
 
     public function routes()
     {
-        return $this->hasMany(Route::class, 'document_employee', 'document_employee');
+        return $this->hasMany(DeliveryRoute::class, 'document_employee', 'document_employee');
     }
 
     public function auditInvoices()
-{
-    return $this->hasMany(AuditInvoice::class, 'document_employee', 'document_employee');
-}
+    {
+        return $this->hasMany(AuditInvoice::class, 'document_employee', 'document_employee');
+    }
+
+    public function location()
+    {
+        return $this->hasOne(EmployeeLocation::class, 'document_employee', 'document_employee');
+    }
+
+    public function routeSuggestions()
+    {
+        return $this->hasMany(RouteSuggestion::class, 'document_employee', 'document_employee');
+    }
 }

@@ -51,6 +51,11 @@ class Client extends Model
 
     public function routes()
     {
-        return $this->hasMany(Route::class, 'id_client', 'id_client');
+        return $this->hasMany(DeliveryRoute::class, 'id_client', 'id_client');
+    }
+
+    public function routeSuggestion()
+    {
+        return $this->hasOne(RouteSuggestion::class, 'id_client', 'id_client');
     }
 }

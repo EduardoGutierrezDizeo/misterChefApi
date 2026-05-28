@@ -5,6 +5,8 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\LocationController;
+use App\Http\Controllers\RouteController;
 
 /*
 |--------------------------------------------------------------------------
@@ -47,4 +49,20 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/invoices/{id}/audit',        [InvoiceController::class, 'audit']);
     Route::patch('/invoices/{id}/confirm',    [InvoiceController::class, 'confirm']);
     Route::patch('/invoices/{id}/cancel',     [InvoiceController::class, 'cancel']);
+
+    // Geolocalización
+    Route::post('/location',             [LocationController::class, 'update']);
+    Route::get('/location',              [LocationController::class, 'index']);
+    Route::patch('/location/deactivate', [LocationController::class, 'deactivate']);
+ 
+    // Rutas de domiciliarios — rutas fijas ANTES de las dinámicas
+    Route::get('/routes/navigate/{clientId}',          [RouteController::class, 'navigate']);
+    Route::post('/routes/distribute',                  [RouteController::class, 'distribute']);
+    Route::get('/routes',                              [RouteController::class, 'index']);
+    Route::delete('/routes/{id}',                      [RouteController::class, 'destroy']);
+ 
+    // Sugerencias de rutas
+    Route::get('/route-suggestions',                        [RouteController::class, 'suggestions']);
+    Route::patch('/route-suggestions/{id}/approve',         [RouteController::class, 'approveSuggestion']);
+    Route::patch('/route-suggestions/{id}/reject',          [RouteController::class, 'rejectSuggestion']);
 });
