@@ -30,6 +30,7 @@ class Client extends Model
     ];
 
     protected $casts = [
+        'status'    => 'boolean',
         'longitude' => 'decimal:6',
         'latitude' => 'decimal:6',
     ];
