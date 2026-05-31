@@ -30,9 +30,9 @@ class Client extends Model
     ];
 
     protected $casts = [
-        'status'    => 'boolean',
-        'longitude' => 'decimal:6',
-        'latitude' => 'decimal:6',
+        'status'    => 'integer',
+        'longitude' => 'float',
+        'latitude' => 'float',
     ];
 
     public function employee()

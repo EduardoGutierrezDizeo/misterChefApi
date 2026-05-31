@@ -21,8 +21,9 @@ class Detail extends Model
     ];
 
     protected $casts = [
-        'amount' => 'decimal:2',
-        'subtotal' => 'decimal:2',
+        'line_number'   => 'integer',
+        'amount' => 'float',
+        'subtotal' => 'float',
     ];
 
     public function invoice()

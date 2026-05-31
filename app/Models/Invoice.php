@@ -23,6 +23,7 @@ class Invoice extends Model
     protected $casts = [
         'date' => 'date',
         'total' => 'float',
+        'status' => 'string',
     ];
 
     public function client()
