@@ -196,6 +196,31 @@ class InvoiceController extends Controller
         ], 200);
     }
 
+    // GET /api/v1/invoices/stats
+    // Estadísticas del día para el dashboard del domiciliario
+    public function stats(Request $request)
+    {
+        $employee = $request->user();
+        $today    = now()->toDateString();
+ 
+        // Las facturas se relacionan al empleado a través del cliente
+        $query = Invoice::whereRaw('DATE(date) = ?', [$today]);
+ 
+        if ($employee->type === 'V') {
+            $query->whereHas('client', function ($q) use ($employee) {
+                $q->where('document_employee', $employee->document_employee);
+            });
+        }
+ 
+        $invoices = $query->get();
+ 
+        return response()->json([
+            'total_pedidos'      => $invoices->count(),
+            'total_ventas'       => round($invoices->sum('total'), 2),
+            'clientes_visitados' => $invoices->where('status', 'C')->count(),
+        ], 200);
+    }
+
     // PATCH /api/v1/invoices/{id}/cancel
     public function cancel(Request $request, $id)
     {

@@ -53,6 +53,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     // Facturas
     Route::get('/invoices',                   [InvoiceController::class, 'index']);
     Route::post('/invoices',                  [InvoiceController::class, 'store']);
+    Route::get('/invoices/stats',             [InvoiceController::class, 'stats']);
     Route::get('/invoices/{id}',              [InvoiceController::class, 'show']);
     Route::get('/invoices/{id}/audit',        [InvoiceController::class, 'audit']);
     Route::patch('/invoices/{id}/confirm',    [InvoiceController::class, 'confirm']);
