@@ -69,7 +69,7 @@ class EmployeeController extends Controller
             'last_name_2'          => 'nullable|string|max:20',
             'phone_number'         => 'nullable|string|max:12',
             'email'                => 'required|email|max:50|unique:employee,email',
-            'password'             => 'required|string|min:6',
+            'password'             => 'nullable|string|min:6',
             'type'                 => 'required|in:A,V',
             'status'               => 'sometimes|in:A,I',
             'commission_percentage'=> 'nullable|numeric|min:0|max:100',
@@ -85,7 +85,8 @@ class EmployeeController extends Controller
             'last_name_2'           => $request->last_name_2,
             'phone_number'          => $request->phone_number,
             'email'                 => $request->email,
-            'password'              => Hash::make($request->password),
+            'password'              => Hash::make($request->password ?? $request->document_employee),
+            'first_login'           => true,
             'type'                  => $request->type,
             'status'                => $request->input('status', 'A'),
             'commission_percentage' => $request->input('commission_percentage', 0),
@@ -95,6 +96,7 @@ class EmployeeController extends Controller
 
         return response()->json([
             'message'  => 'Empleado creado correctamente.',
+            'temp_password' => $request->password ?? $request->document_employee,
             'employee' => [
                 'document_employee'    => $employee->document_employee,
                 'name_1'               => $employee->name_1,

@@ -36,6 +36,7 @@ class AuthController extends Controller
             'token'   => $token,
             'employee' => [
                 'document_employee'  => $employee->document_employee,
+                'first_login'        => (bool) $employee->first_login,
                 'name_1'             => $employee->name_1,
                 'name_2'             => $employee->name_2,
                 'last_name_1'        => $employee->last_name_1,
@@ -75,6 +76,22 @@ class AuthController extends Controller
             'phone_number'         => $employee->phone_number,
             'commission_percentage'=> $employee->commission_percentage,
             'hire_date'            => $employee->hire_date,
+        ], 200);
+    }
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $employee = $request->user();
+        $employee->update([
+            'password'    => Hash::make($request->password),
+            'first_login' => false,
+        ]);
+
+        return response()->json([
+            'message' => 'Contraseña actualizada correctamente.',
         ], 200);
     }
 }

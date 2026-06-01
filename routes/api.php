@@ -49,6 +49,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/employees/{id}',           [EmployeeController::class, 'show']);
     Route::put('/employees/{id}',           [EmployeeController::class, 'update']);
     Route::patch('/employees/{id}/status',  [EmployeeController::class, 'changeStatus']);
+    Route::post('/change-password',         [AuthController::class, 'changePassword'])->middleware('auth:sanctum');
 
     // Facturas
     Route::get('/invoices',                   [InvoiceController::class, 'index']);
