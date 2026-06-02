@@ -8,6 +8,7 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\RouteController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\ChatbotController;
 
 /*
 |--------------------------------------------------------------------------
@@ -80,5 +81,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/route-suggestions',                   [RouteController::class, 'suggestions']);
     Route::patch('/route-suggestions/{id}/approve',    [RouteController::class, 'approveSuggestion']);
     Route::patch('/route-suggestions/{id}/reject',     [RouteController::class, 'rejectSuggestion']);
+
+    // Chatbot
+    Route::post('/chatbot', [ChatbotController::class, 'handle']);
 
 });
