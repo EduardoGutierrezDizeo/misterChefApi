@@ -26,8 +26,9 @@ Route::prefix('v1')->group(function () {
 Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
 
     // Auth
-    Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/me',      [AuthController::class, 'me']);
+    Route::post('/logout',          [AuthController::class, 'logout']);
+    Route::get('/me',               [AuthController::class, 'me']);
+    Route::post('/change-password', [AuthController::class, 'changePassword']);
 
     // Empleados
     Route::get('/employees',               [EmployeeController::class, 'index']);
@@ -50,14 +51,6 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/clients/{id}',           [ClientController::class, 'show']);
     Route::put('/clients/{id}',           [ClientController::class, 'update']);
     Route::patch('/clients/{id}/status',  [ClientController::class, 'changeStatus']);
-
-// Empleados
-    Route::get('/employees',               [EmployeeController::class, 'index']);
-    Route::post('/employees',              [EmployeeController::class, 'store']);
-    Route::get('/employees/{id}',          [EmployeeController::class, 'show']);
-    Route::put('/employees/{id}',          [EmployeeController::class, 'update']);
-    Route::patch('/employees/{id}/status', [EmployeeController::class, 'changeStatus']);
-    Route::post('/change-password',        [AuthController::class, 'changePassword']);
 
     // Facturas — stats ANTES de {id}
     Route::get('/invoices/stats',          [InvoiceController::class, 'stats']);
