@@ -3,13 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\EmployeeLocation;
-use App\Models\Employee;
+use App\Models\Department;
+use App\Models\City;
 use Illuminate\Http\Request;
 
 class LocationController extends Controller
 {
     // POST /api/v1/location
-    // Domiciliario envía su ubicación cada 30 segundos
     public function update(Request $request)
     {
         $employee = $request->user();
@@ -26,7 +26,6 @@ class LocationController extends Controller
             'is_active' => 'sometimes|boolean',
         ]);
 
-        // updateOrCreate — si ya existe actualiza, si no existe crea
         $location = EmployeeLocation::updateOrCreate(
             ['document_employee' => $employee->document_employee],
             [
@@ -44,7 +43,6 @@ class LocationController extends Controller
     }
 
     // GET /api/v1/location
-    // Administrador ve la última ubicación de todos los domiciliarios activos
     public function index(Request $request)
     {
         $employee = $request->user();
@@ -72,16 +70,33 @@ class LocationController extends Controller
     }
 
     // PATCH /api/v1/location/deactivate
-    // Domiciliario se marca como inactivo al terminar su jornada
     public function deactivate(Request $request)
     {
-        $employee = $request->user();
-
-        EmployeeLocation::where('document_employee', $employee->document_employee)
+        EmployeeLocation::where('document_employee', $request->user()->document_employee)
             ->update(['is_active' => false]);
 
         return response()->json([
             'message' => 'Ubicación desactivada. Ya no apareces en el mapa del administrador.',
         ], 200);
+    }
+
+    // GET /api/v1/departments
+    public function departments()
+    {
+        $departments = Department::select('id_departament', 'name_departament')->get();
+
+        return response()->json($departments, 200);
+    }
+
+    // GET /api/v1/cities?id_departament=D001
+    public function cities(Request $request)
+    {
+        $query = City::select('id_city', 'name_city', 'id_departament');
+
+        if ($request->has('id_departament')) {
+            $query->where('id_departament', $request->id_departament);
+        }
+
+        return response()->json($query->get(), 200);
     }
 }

@@ -14,20 +14,15 @@ class ClientController extends Controller
 
         $query = Client::with(['city', 'city.department', 'employee']);
 
-        // Vendedor solo ve sus propios clientes
-        // Administrador ve todos
         if ($employee->type === 'V') {
             $query->where('document_employee', $employee->document_employee);
         }
 
-        // Filtro opcional por status: ?status=true o ?status=false
         if ($request->has('status')) {
             $query->where('status', filter_var($request->status, FILTER_VALIDATE_BOOLEAN));
         }
 
-        $clients = $query->get();
-
-        return response()->json($clients, 200);
+        return response()->json($query->get(), 200);
     }
 
     // GET /api/v1/clients/{id}
@@ -38,16 +33,11 @@ class ClientController extends Controller
         $client = Client::with(['city', 'city.department', 'employee', 'invoices'])->find($id);
 
         if (!$client) {
-            return response()->json([
-                'message' => 'Cliente no encontrado.',
-            ], 404);
+            return response()->json(['message' => 'Cliente no encontrado.'], 404);
         }
 
-        // Vendedor solo puede ver sus propios clientes
         if ($employee->type === 'V' && $client->document_employee !== $employee->document_employee) {
-            return response()->json([
-                'message' => 'No tienes permiso para ver este cliente.',
-            ], 403);
+            return response()->json(['message' => 'No tienes permiso para ver este cliente.'], 403);
         }
 
         return response()->json($client, 200);
@@ -57,7 +47,6 @@ class ClientController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'id_client'         => 'required|string|max:5|unique:client,id_client',
             'client_name1'      => 'required|string|max:25',
             'client_name2'      => 'nullable|string|max:25',
             'client_last_name1' => 'required|string|max:25',
@@ -72,9 +61,13 @@ class ClientController extends Controller
             'id_city'           => 'required|string|exists:city,id_city',
         ]);
 
-        // El cliente queda asignado al empleado autenticado
         $data = $request->all();
         $data['document_employee'] = $request->user()->document_employee;
+
+        // Generar id_client automático: CLI001, CLI002, etc.
+        $ultimo = Client::orderByRaw('CAST(SUBSTRING(id_client, 4) AS UNSIGNED) DESC')->first();
+        $numero = $ultimo ? (int) substr($ultimo->id_client, 3) + 1 : 1;
+        $data['id_client'] = 'CLI' . str_pad($numero, 3, '0', STR_PAD_LEFT);
 
         $client = Client::create($data);
         $client->load(['city', 'city.department', 'employee']);
@@ -93,16 +86,11 @@ class ClientController extends Controller
         $client = Client::find($id);
 
         if (!$client) {
-            return response()->json([
-                'message' => 'Cliente no encontrado.',
-            ], 404);
+            return response()->json(['message' => 'Cliente no encontrado.'], 404);
         }
 
-        // Solo el vendedor asignado o un administrador puede actualizar
         if ($employee->type === 'V' && $client->document_employee !== $employee->document_employee) {
-            return response()->json([
-                'message' => 'No tienes permiso para actualizar este cliente.',
-            ], 403);
+            return response()->json(['message' => 'No tienes permiso para actualizar este cliente.'], 403);
         }
 
         $request->validate([
@@ -120,17 +108,9 @@ class ClientController extends Controller
         ]);
 
         $client->update($request->only([
-            'client_name1',
-            'client_name2',
-            'client_last_name1',
-            'client_last_name2',
-            'business_name',
-            'address',
-            'longitude',
-            'latitude',
-            'phone_number',
-            'id_departament',
-            'id_city',
+            'client_name1', 'client_name2', 'client_last_name1', 'client_last_name2',
+            'business_name', 'address', 'longitude', 'latitude',
+            'phone_number', 'id_departament', 'id_city',
         ]));
 
         $client->load(['city', 'city.department', 'employee']);
@@ -147,9 +127,7 @@ class ClientController extends Controller
         $client = Client::find($id);
 
         if (!$client) {
-            return response()->json([
-                'message' => 'Cliente no encontrado.',
-            ], 404);
+            return response()->json(['message' => 'Cliente no encontrado.'], 404);
         }
 
         $request->validate([
