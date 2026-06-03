@@ -18,7 +18,7 @@ class InvoiceController extends Controller
     {
         $employee = $request->user();
 
-        $query = Invoice::with(['client', 'details.product']);
+        $query = Invoice::with(['client', 'details.product', 'audits.employee']);
 
         if ($employee->type === 'V') {
             $query->whereHas('client', function ($q) use ($employee) {
@@ -42,7 +42,7 @@ class InvoiceController extends Controller
     {
         $employee = $request->user();
 
-        $invoice = Invoice::with(['client', 'details.product'])->find($id);
+        $invoice = Invoice::with(['client', 'details.product', 'audits.employee'])->find($id);
 
         if (!$invoice) {
             return response()->json(['message' => 'Factura no encontrada.'], 404);
