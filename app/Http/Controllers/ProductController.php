@@ -48,19 +48,28 @@ class ProductController extends Controller
     }
 
     // POST /api/v1/products
+    // POST /api/v1/products
     public function store(Request $request)
     {
         $request->validate([
-            'id_product'     => 'required|string|max:5|unique:product,id_product',
             'product_name'   => 'required|string|max:25',
             'stock'          => 'required|integer|min:0',
             'minimun_stock'  => 'required|integer|min:0',
             'selling_price'  => 'required|numeric|min:0',
-            'status'         => 'required|boolean',
             'id_produc_type' => 'required|string|exists:product_type,id_produc_type',
         ]);
 
-        $product = Product::create($request->all());
+        $ultimo = Product::orderByRaw('CAST(SUBSTRING(id_product, 2) AS UNSIGNED) DESC')->first();
+        $numero = $ultimo ? (int) substr($ultimo->id_product, 1) + 1 : 1;
+
+        $data = $request->only([
+            'product_name', 'stock', 'minimun_stock',
+            'selling_price', 'id_produc_type',
+        ]);
+        $data['id_product'] = 'P' . str_pad($numero, 4, '0', STR_PAD_LEFT);
+        $data['status']     = 1; // siempre activo al crear
+
+        $product = Product::create($data);
         $product->load('productType');
 
         return response()->json([
@@ -114,7 +123,7 @@ class ProductController extends Controller
         }
 
         $request->validate([
-            'status' => 'required|boolean',
+            'status' => 'sometimes|boolean',
         ]);
 
         $product->update(['status' => $request->status]);
@@ -123,5 +132,34 @@ class ProductController extends Controller
             'message' => 'Estado del producto actualizado correctamente.',
             'product' => $product,
         ], 200);
+    }
+
+    // PATCH /api/v1/products/{id}/stock
+    public function updateStock(Request $request, $id)
+    {
+        $product = Product::find($id);
+
+        if (!$product) {
+            return response()->json(['message' => 'Producto no encontrado.'], 404);
+        }
+
+        $request->validate([
+            'stock' => 'required|integer|min:0',
+        ]);
+
+        $product->update(['stock' => $request->stock]);
+        $product->load('productType');
+
+        return response()->json([
+            'message' => 'Stock actualizado correctamente.',
+            'product' => $product,
+        ], 200);
+    }
+
+    // GET /api/v1/product-types
+    public function types()
+    {
+        $types = ProductType::select('id_produc_type', 'type')->get();
+        return response()->json($types, 200);
     }
 }

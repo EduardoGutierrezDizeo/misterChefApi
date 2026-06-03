@@ -85,4 +85,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     // Chatbot
     Route::post('/chatbot', [ChatbotController::class, 'handle']);
 
+    //produtos
+    Route::patch('/products/{id}/stock',  [ProductController::class, 'updateStock']);
+    Route::get('/product-types',          [ProductController::class, 'types']);
+
 });

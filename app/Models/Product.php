@@ -26,7 +26,7 @@ class Product extends Model
         'stock' => 'integer',
         'minimun_stock' => 'integer',
         'selling_price' => 'float',
-        'status'        => 'integer',
+        'status'        => 'boolean',
     ];
 
     public function productType()
