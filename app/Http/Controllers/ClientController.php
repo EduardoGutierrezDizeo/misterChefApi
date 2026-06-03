@@ -59,10 +59,16 @@ class ClientController extends Controller
             'status'            => 'required|boolean',
             'id_departament'    => 'required|string|exists:department,id_departament',
             'id_city'           => 'required|string|exists:city,id_city',
+            'document_employee' => 'nullable|string|exists:employee,document_employee',
         ]);
 
         $data = $request->all();
-        $data['document_employee'] = $request->user()->document_employee;
+
+        if ($request->user()->type === 'A' && $request->filled('document_employee')) {
+            $data['document_employee'] = $request->document_employee;
+        } else {
+            $data['document_employee'] = $request->user()->document_employee;
+        }
 
         // Generar id_client automático: CLI001, CLI002, etc.
         $ultimo = Client::orderByRaw('CAST(SUBSTRING(id_client, 4) AS UNSIGNED) DESC')->first();
