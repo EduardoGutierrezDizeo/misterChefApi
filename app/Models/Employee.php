@@ -29,6 +29,7 @@ class Employee extends Authenticatable
         'commission_percentage',
         'hire_date',
         'can_modify_invoice',
+        'first_login',  
     ];
 
     protected $hidden = [
@@ -38,6 +39,7 @@ class Employee extends Authenticatable
     protected $casts = [
         'hire_date' => 'date',
         'commission_percentage' => 'decimal:2',
+        'first_login'           => 'boolean',
     ];
 
     public function clients()
