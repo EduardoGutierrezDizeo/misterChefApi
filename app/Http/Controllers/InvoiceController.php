@@ -226,7 +226,7 @@ class InvoiceController extends Controller
     {
         $employee = $request->user();
 
-        if ($employee->can_modify_invoice !== 'S') {
+        if ($employee->type !== 'A' && $employee->type !== 'V') {
             return response()->json([
                 'message' => 'No tienes permiso para anular facturas.',
             ], 403);
