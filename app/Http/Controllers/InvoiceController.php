@@ -93,7 +93,7 @@ class InvoiceController extends Controller
         $invoice = DB::transaction(function () use ($request) {
             $invoice = Invoice::create([
                 'id_invoice' => $request->id_invoice,
-                'date'       => now()->toDateString(),
+                'date'       => now(),
                 'total'      => 0,
                 'status'     => 'P',
                 'id_client'  => $request->id_client,

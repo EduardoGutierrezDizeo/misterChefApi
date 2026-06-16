@@ -21,7 +21,7 @@ class Invoice extends Model
     ];
 
     protected $casts = [
-        'date' => 'date',
+        'date' => 'datetime',
         'total' => 'float',
         'status' => 'string',
     ];
