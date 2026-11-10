@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Product;
 use App\Models\Client;
 use App\Models\Invoice;
-use App\Models\DeliveryRoute;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
@@ -15,15 +14,15 @@ class ChatbotController extends Controller
     public function handle(Request $request)
     {
         $request->validate([
-            'message'   => 'required|string|max:500',
-            'latitude'  => 'nullable|numeric',
+            'message' => 'required|string|max:500',
+            'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
         ]);
 
         $employee = $request->user();
-        $message  = strtolower(trim($request->message));
+        $message = strtolower(trim($request->message));
 
-        $context  = $this->buildContext($message, $employee, $request);
+        $context = $this->buildContext($message, $employee, $request);
         $response = $this->askGroq($request->message, $context, $employee);
 
         return response()->json([
@@ -51,14 +50,14 @@ class ChatbotController extends Controller
 
         // ── Clientes del vendedor ─────────────────────────────────────────────
         if ($this->contains($message, ['cliente', 'clientes', 'visita', 'ruta', 'pendiente', 'falta', 'recorrido'])) {
-            $today   = now()->toDateString();
+            $today = now()->toDateString();
             $clientes = Client::where('document_employee', $employee->document_employee)
                 ->where('status', true)
                 ->get();
 
             $clientesVisitados = Invoice::whereHas('client', function ($q) use ($employee) {
-                    $q->where('document_employee', $employee->document_employee);
-                })
+                $q->where('document_employee', $employee->document_employee);
+            })
                 ->whereRaw('DATE(date) = ?', [$today])
                 ->where('status', 'C')
                 ->pluck('id_client')
@@ -71,23 +70,23 @@ class ChatbotController extends Controller
             }
 
             $pendientes = $clientes->count() - count($clientesVisitados);
-            $context   .= "Resumen: {$pendientes} clientes pendientes de visitar hoy.\n";
+            $context .= "Resumen: {$pendientes} clientes pendientes de visitar hoy.\n";
         }
 
         // ── Reporte del día ───────────────────────────────────────────────────
         if ($this->contains($message, ['hoy', 'día', 'dia', 'reporte', 'resumen', 'ventas', 'pedidos', 'realizado', 'avance', 'progreso'])) {
-            $today    = now()->toDateString();
+            $today = now()->toDateString();
             $invoices = Invoice::whereHas('client', function ($q) use ($employee) {
-                    $q->where('document_employee', $employee->document_employee);
-                })
+                $q->where('document_employee', $employee->document_employee);
+            })
                 ->whereRaw('DATE(date) = ?', [$today])
                 ->get();
 
-            $totalVentas  = $invoices->where('status', 'C')->sum('total');
+            $totalVentas = $invoices->where('status', 'C')->sum('total');
             $totalPedidos = $invoices->count();
-            $confirmadas  = $invoices->where('status', 'C')->count();
-            $pendientes   = $invoices->where('status', 'P')->count();
-            $anuladas     = $invoices->where('status', 'A')->count();
+            $confirmadas = $invoices->where('status', 'C')->count();
+            $pendientes = $invoices->where('status', 'P')->count();
+            $anuladas = $invoices->where('status', 'A')->count();
 
             $context .= "\nREPORTE DEL DÍA ({$today}):\n";
             $context .= "- Total pedidos generados: {$totalPedidos}\n";
@@ -131,6 +130,7 @@ class ChatbotController extends Controller
                             $request->latitude, $request->longitude,
                             $c->latitude, $c->longitude
                         );
+
                         return $c;
                     })
                     ->sortBy('distancia')
@@ -154,16 +154,16 @@ class ChatbotController extends Controller
                 ->whereNotNull('longitude')
                 ->get();
 
-            $today     = now()->toDateString();
+            $today = now()->toDateString();
             $visitados = Invoice::whereHas('client', function ($q) use ($employee) {
-                    $q->where('document_employee', $employee->document_employee);
-                })
+                $q->where('document_employee', $employee->document_employee);
+            })
                 ->whereRaw('DATE(date) = ?', [$today])
                 ->where('status', 'C')
                 ->pluck('id_client')
                 ->toArray();
 
-            $pendientes = $clientes->filter(fn($c) => !in_array($c->id_client, $visitados));
+            $pendientes = $clientes->filter(fn ($c) => ! in_array($c->id_client, $visitados));
 
             $context .= "\nCLIENTES PENDIENTES CON COORDENADAS (para optimizar ruta):\n";
             foreach ($pendientes as $c) {
@@ -172,7 +172,7 @@ class ChatbotController extends Controller
         }
 
         if (empty($context)) {
-            $context = "El empleado es {$employee->name_1} {$employee->last_name_1}, tipo: " . ($employee->type === 'A' ? 'Administrador' : 'Domiciliario') . ".";
+            $context = "El empleado es {$employee->name_1} {$employee->last_name_1}, tipo: ".($employee->type === 'A' ? 'Administrador' : 'Domiciliario').'.';
         }
 
         return $context;
@@ -183,43 +183,44 @@ class ChatbotController extends Controller
     // ─────────────────────────────────────────────────────────────────────────
     private function askGroq(string $question, string $context, $employee): string
     {
-        $systemPrompt = "Eres un asistente inteligente para la empresa Mister Chef, una empresa de distribución de alimentos. " .
-            "Respondes preguntas de los domiciliarios y administradores sobre su trabajo diario. " .
-            "Usa un tono amigable y profesional. Responde siempre en español. " .
-            "Sé conciso pero completo. Si hay alertas importantes (stock bajo, clientes sin visitar) mencionálas. " .
-            "El empleado que pregunta es: {$employee->name_1} {$employee->last_name_1}.\n\n" .
+        $systemPrompt = 'Eres un asistente inteligente para la empresa Mister Chef, una empresa de distribución de alimentos. '.
+            'Respondes preguntas de los domiciliarios y administradores sobre su trabajo diario. '.
+            'Usa un tono amigable y profesional. Responde siempre en español. '.
+            'Sé conciso pero completo. Si hay alertas importantes (stock bajo, clientes sin visitar) mencionálas. '.
+            "El empleado que pregunta es: {$employee->name_1} {$employee->last_name_1}.\n\n".
             "DATOS ACTUALES DEL SISTEMA:\n{$context}";
 
         $payload = [
-            'model'    => 'llama-3.3-70b-versatile',
+            'model' => config('services.groq.model'),
             'messages' => [
                 [
-                    'role'    => 'system',
+                    'role' => 'system',
                     'content' => $systemPrompt,
                 ],
                 [
-                    'role'    => 'user',
+                    'role' => 'user',
                     'content' => $question,
                 ],
             ],
             'temperature' => 0.7,
-            'max_tokens'  => 500,
+            'max_tokens' => 500,
         ];
 
         $apiKey = config('services.groq.key');
-        $url    = config('services.groq.url');
+        $url = config('services.groq.url');
 
         $response = Http::withHeaders([
             'Authorization' => "Bearer {$apiKey}",
-            'Content-Type'  => 'application/json',
+            'Content-Type' => 'application/json',
         ])->post($url, $payload);
 
         if ($response->successful()) {
             $data = $response->json();
+
             return $data['choices'][0]['message']['content'] ?? 'No pude generar una respuesta.';
         }
 
-        return 'Error ' . $response->status() . ': ' . $response->body();
+        return 'Error '.$response->status().': '.$response->body();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -232,6 +233,7 @@ class ChatbotController extends Controller
                 return true;
             }
         }
+
         return false;
     }
 
@@ -246,6 +248,7 @@ class ChatbotController extends Controller
         $a = sin($dLat / 2) * sin($dLat / 2)
            + cos(deg2rad($lat1)) * cos(deg2rad($lat2))
            * sin($dLon / 2) * sin($dLon / 2);
+
         return $earthRadius * 2 * atan2(sqrt($a), sqrt(1 - $a));
     }
 }

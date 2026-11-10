@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\EmployeeLocation;
-use App\Models\Department;
 use App\Models\City;
+use App\Models\Department;
+use App\Models\EmployeeLocation;
 use Illuminate\Http\Request;
 
 class LocationController extends Controller
@@ -21,7 +21,7 @@ class LocationController extends Controller
         }
 
         $request->validate([
-            'latitude'  => 'required|numeric|between:-90,90',
+            'latitude' => 'required|numeric|between:-90,90',
             'longitude' => 'required|numeric|between:-180,180',
             'is_active' => 'sometimes|boolean',
         ]);
@@ -29,15 +29,15 @@ class LocationController extends Controller
         $location = EmployeeLocation::updateOrCreate(
             ['document_employee' => $employee->document_employee],
             [
-                'latitude'   => $request->latitude,
-                'longitude'  => $request->longitude,
-                'is_active'  => $request->input('is_active', true),
+                'latitude' => $request->latitude,
+                'longitude' => $request->longitude,
+                'is_active' => $request->input('is_active', true),
                 'updated_at' => now(),
             ]
         );
 
         return response()->json([
-            'message'  => 'Ubicación actualizada correctamente.',
+            'message' => 'Ubicación actualizada correctamente.',
             'location' => $location,
         ], 200);
     }
@@ -55,14 +55,15 @@ class LocationController extends Controller
 
         $locations = EmployeeLocation::with('employee')
             ->where('is_active', true)
+            ->where('updated_at', '>=', now()->subMinutes(config('misterchef.location_stale_minutes')))
             ->get()
             ->map(function ($loc) {
                 return [
                     'document_employee' => $loc->document_employee,
-                    'name'              => $loc->employee->name_1 . ' ' . $loc->employee->last_name_1,
-                    'latitude'          => $loc->latitude,
-                    'longitude'         => $loc->longitude,
-                    'last_update'       => $loc->updated_at,
+                    'name' => $loc->employee->name_1.' '.$loc->employee->last_name_1,
+                    'latitude' => $loc->latitude,
+                    'longitude' => $loc->longitude,
+                    'last_update' => $loc->updated_at,
                 ];
             });
 

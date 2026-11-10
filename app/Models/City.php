@@ -2,16 +2,21 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Awobaz\Compoships\Compoships;
+use Illuminate\Database\Eloquent\Model;
 
 class City extends Model
 {
     use Compoships;
+
     protected $table = 'city';
+
     protected $primaryKey = ['id_departament', 'id_city'];
+
     public $keyType = 'string';
+
     public $incrementing = false;
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -19,6 +24,16 @@ class City extends Model
         'name_city',
         'id_departament',
     ];
+
+    /**
+     * @var list<string>
+     */
+    protected $appends = ['city_name'];
+
+    public function getCityNameAttribute(): string
+    {
+        return (string) $this->name_city;
+    }
 
     public function department()
     {

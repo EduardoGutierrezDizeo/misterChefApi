@@ -7,15 +7,29 @@ use Illuminate\Database\Eloquent\Model;
 class Department extends Model
 {
     protected $table = 'department';
+
     protected $primaryKey = 'id_departament';
+
     public $keyType = 'string';
+
     public $incrementing = false;
+
     public $timestamps = false;
 
     protected $fillable = [
         'id_departament',
         'name_departament',
     ];
+
+    /**
+     * @var list<string>
+     */
+    protected $appends = ['department_name'];
+
+    public function getDepartmentNameAttribute(): string
+    {
+        return (string) $this->name_departament;
+    }
 
     public function cities()
     {
