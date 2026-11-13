@@ -56,6 +56,9 @@ class LocationController extends Controller
         $locations = EmployeeLocation::with('employee')
             ->where('is_active', true)
             ->where('updated_at', '>=', now()->subMinutes(config('misterchef.location_stale_minutes')))
+            ->whereHas('employee', function ($query) {
+                $query->where('status', 'A');
+            })
             ->get()
             ->map(function ($loc) {
                 return [
