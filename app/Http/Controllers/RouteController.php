@@ -6,6 +6,7 @@ use App\Models\Client;
 use App\Models\DeliveryRoute;
 use App\Models\Employee;
 use App\Models\RouteSuggestion;
+use App\Services\RouteDistributionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -30,7 +31,9 @@ class RouteController extends Controller
             'employee' => function ($q) {
                 $q->select('document_employee', 'name_1', 'last_name_1', 'phone_number');
             },
-        ]);
+        ])->whereHas('client', function ($q) {
+            $q->where('status', true);
+        });
 
         if ($employee->type === 'V') {
             $query->where('document_employee', $employee->document_employee);
@@ -83,12 +86,28 @@ class RouteController extends Controller
             ->first();
 
         if (! $route) {
+            $inactiveClient = Client::whereKey($clientId)
+                ->where('document_employee', $employee->document_employee)
+                ->first();
+
+            if ($inactiveClient && ! $inactiveClient->status) {
+                return response()->json([
+                    'message' => 'Este cliente está desactivado.',
+                ], 422);
+            }
+
             return response()->json([
                 'message' => 'Este cliente no pertenece a tu ruta.',
             ], 403);
         }
 
         $client = $route->client;
+
+        if (! $client->status) {
+            return response()->json([
+                'message' => 'Este cliente está desactivado.',
+            ], 422);
+        }
 
         if (! $client->latitude || ! $client->longitude) {
             return response()->json([
@@ -241,6 +260,84 @@ class RouteController extends Controller
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // POST /api/v1/routes/distribution/preview
+    // Vista previa de la redistribución total, sin escribir en la BD
+    // ─────────────────────────────────────────────────────────────────────────
+    public function distributionPreview(Request $request, RouteDistributionService $service)
+    {
+        if ($request->user()->type !== 'A') {
+            return response()->json([
+                'message' => 'Solo los administradores pueden distribuir rutas.',
+            ], 403);
+        }
+
+        $plan = $service->plan();
+
+        if ($plan['summary']['sellers'] === 0) {
+            return response()->json([
+                'message' => 'No hay vendedores activos para distribuir.',
+            ], 422);
+        }
+
+        if ($plan['summary']['clients'] === 0) {
+            return response()->json([
+                'message' => 'No hay clientes elegibles para distribuir.',
+            ], 422);
+        }
+
+        return response()->json([
+            'fingerprint' => $plan['fingerprint'],
+            'summary' => $plan['summary'],
+            'sellers' => $plan['sellers'],
+            'skipped' => $plan['skipped'],
+        ], 200);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // POST /api/v1/routes/distribution/apply
+    // Aplica la redistribución total validando el fingerprint de la vista previa
+    // ─────────────────────────────────────────────────────────────────────────
+    public function distributionApply(Request $request, RouteDistributionService $service)
+    {
+        if ($request->user()->type !== 'A') {
+            return response()->json([
+                'message' => 'Solo los administradores pueden distribuir rutas.',
+            ], 403);
+        }
+
+        $request->validate([
+            'fingerprint' => 'required|string',
+        ]);
+
+        $plan = $service->plan();
+
+        if ($plan['summary']['sellers'] === 0) {
+            return response()->json([
+                'message' => 'No hay vendedores activos para distribuir.',
+            ], 422);
+        }
+
+        if ($plan['summary']['clients'] === 0) {
+            return response()->json([
+                'message' => 'No hay clientes elegibles para distribuir.',
+            ], 422);
+        }
+
+        if ($plan['fingerprint'] !== $request->fingerprint) {
+            return response()->json([
+                'message' => 'El reparto cambió desde la vista previa. Vuelve a calcularlo.',
+            ], 409);
+        }
+
+        $applied = $service->apply($request->user()->document_employee);
+
+        return response()->json([
+            'message' => 'Distribución aplicada correctamente.',
+            'applied' => $applied,
+        ], 200);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // GET /api/v1/route-suggestions
     // Administrador ve todas las sugerencias pendientes
     // ─────────────────────────────────────────────────────────────────────────
@@ -268,6 +365,13 @@ class RouteController extends Controller
     public function approveSuggestion(Request $request, $id)
     {
         $employee = $request->user();
+
+        if ($employee->type !== 'A') {
+            return response()->json([
+                'message' => 'Solo los administradores pueden aprobar sugerencias.',
+            ], 403);
+        }
+
         $suggestion = RouteSuggestion::find($id);
 
         if (! $suggestion) {
@@ -278,12 +382,25 @@ class RouteController extends Controller
             return response()->json(['message' => 'Esta sugerencia ya fue procesada.'], 422);
         }
 
-        DB::transaction(function () use ($suggestion, $employee) {
+        $seller = Employee::find($suggestion->document_employee);
+
+        if (! $seller || $seller->type !== 'V' || $seller->status !== 'A') {
+            return response()->json([
+                'message' => 'El vendedor destino no existe o no está activo.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($suggestion, $employee, $seller) {
+            DeliveryRoute::where('id_client', $suggestion->id_client)->delete();
+
             DeliveryRoute::create([
                 'id_ruta' => strtoupper(Str::random(8)),
                 'id_client' => $suggestion->id_client,
-                'document_employee' => $suggestion->document_employee,
+                'document_employee' => $seller->document_employee,
             ]);
+
+            Client::whereKey($suggestion->id_client)
+                ->update(['document_employee' => $seller->document_employee]);
 
             $suggestion->update([
                 'status' => 'A',
@@ -304,6 +421,13 @@ class RouteController extends Controller
     public function rejectSuggestion(Request $request, $id)
     {
         $employee = $request->user();
+
+        if ($employee->type !== 'A') {
+            return response()->json([
+                'message' => 'Solo los administradores pueden rechazar sugerencias.',
+            ], 403);
+        }
+
         $suggestion = RouteSuggestion::find($id);
 
         if (! $suggestion) {
@@ -315,19 +439,32 @@ class RouteController extends Controller
         }
 
         $request->validate([
-            'document_employee' => 'required|string|exists:employee,document_employee',
+            'document_employee' => 'required|string',
         ]);
 
-        DB::transaction(function () use ($suggestion, $employee, $request) {
+        $seller = Employee::find($request->document_employee);
+
+        if (! $seller || $seller->type !== 'V' || $seller->status !== 'A') {
+            return response()->json([
+                'message' => 'El vendedor destino no existe o no está activo.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($suggestion, $employee, $seller) {
+            DeliveryRoute::where('id_client', $suggestion->id_client)->delete();
+
             DeliveryRoute::create([
                 'id_ruta' => strtoupper(Str::random(8)),
                 'id_client' => $suggestion->id_client,
-                'document_employee' => $request->document_employee,
+                'document_employee' => $seller->document_employee,
             ]);
+
+            Client::whereKey($suggestion->id_client)
+                ->update(['document_employee' => $seller->document_employee]);
 
             $suggestion->update([
                 'status' => 'R',
-                'document_employee' => $request->document_employee,
+                'document_employee' => $seller->document_employee,
                 'resolved_at' => now(),
                 'resolved_by' => $employee->document_employee,
             ]);
@@ -368,17 +505,6 @@ class RouteController extends Controller
     // ─────────────────────────────────────────────────────────────────────────
     private function haversineDistance($lat1, $lon1, $lat2, $lon2)
     {
-        $earthRadius = 6371; // km
-
-        $dLat = deg2rad($lat2 - $lat1);
-        $dLon = deg2rad($lon2 - $lon1);
-
-        $a = sin($dLat / 2) * sin($dLat / 2)
-           + cos(deg2rad($lat1)) * cos(deg2rad($lat2))
-           * sin($dLon / 2) * sin($dLon / 2);
-
-        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
-
-        return $earthRadius * $c;
+        return RouteDistributionService::haversineDistance($lat1, $lon1, $lat2, $lon2);
     }
 }

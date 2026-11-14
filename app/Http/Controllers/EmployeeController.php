@@ -2,8 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Client;
+use App\Models\DeliveryRoute;
 use App\Models\Employee;
+use App\Models\EmployeeLocation;
+use App\Models\RouteSuggestion;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class EmployeeController extends Controller
@@ -43,7 +48,7 @@ class EmployeeController extends Controller
             'hire_date', 'can_modify_invoice',
         ])->find($id);
 
-        if (!$employee) {
+        if (! $employee) {
             return response()->json([
                 'message' => 'Empleado no encontrado.',
             ], 404);
@@ -62,54 +67,54 @@ class EmployeeController extends Controller
         }
 
         $request->validate([
-            'document_employee'    => 'required|string|max:15|unique:employee,document_employee',
-            'name_1'               => 'required|string|max:20',
-            'name_2'               => 'nullable|string|max:20',
-            'last_name_1'          => 'required|string|max:20',
-            'last_name_2'          => 'nullable|string|max:20',
-            'phone_number'         => 'nullable|string|max:12',
-            'email'                => 'required|email|max:50|unique:employee,email',
-            'password'             => 'nullable|string|min:6',
-            'type'                 => 'required|in:A,V',
-            'status'               => 'sometimes|in:A,I',
-            'commission_percentage'=> 'nullable|numeric|min:0|max:100',
-            'hire_date'            => 'nullable|date',
-            'can_modify_invoice'   => 'sometimes|in:S,N',
+            'document_employee' => 'required|string|max:15|unique:employee,document_employee',
+            'name_1' => 'required|string|max:20',
+            'name_2' => 'nullable|string|max:20',
+            'last_name_1' => 'required|string|max:20',
+            'last_name_2' => 'nullable|string|max:20',
+            'phone_number' => 'nullable|string|max:12',
+            'email' => 'required|email|max:50|unique:employee,email',
+            'password' => 'nullable|string|min:6',
+            'type' => 'required|in:A,V',
+            'status' => 'sometimes|in:A,I',
+            'commission_percentage' => 'nullable|numeric|min:0|max:100',
+            'hire_date' => 'nullable|date',
+            'can_modify_invoice' => 'sometimes|in:S,N',
         ]);
 
         $employee = Employee::create([
-            'document_employee'     => $request->document_employee,
-            'name_1'                => $request->name_1,
-            'name_2'                => $request->name_2,
-            'last_name_1'           => $request->last_name_1,
-            'last_name_2'           => $request->last_name_2,
-            'phone_number'          => $request->phone_number,
-            'email'                 => $request->email,
-            'password'              => Hash::make($request->password ?? $request->document_employee),
-            'first_login'           => true,
-            'type'                  => $request->type,
-            'status'                => $request->input('status', 'A'),
+            'document_employee' => $request->document_employee,
+            'name_1' => $request->name_1,
+            'name_2' => $request->name_2,
+            'last_name_1' => $request->last_name_1,
+            'last_name_2' => $request->last_name_2,
+            'phone_number' => $request->phone_number,
+            'email' => $request->email,
+            'password' => Hash::make($request->password ?? $request->document_employee),
+            'first_login' => true,
+            'type' => $request->type,
+            'status' => $request->input('status', 'A'),
             'commission_percentage' => $request->input('commission_percentage', 0),
-            'hire_date'             => $request->hire_date,
-            'can_modify_invoice'    => $request->input('can_modify_invoice', 'N'),
+            'hire_date' => $request->hire_date,
+            'can_modify_invoice' => $request->input('can_modify_invoice', 'N'),
         ]);
 
         return response()->json([
-            'message'  => 'Empleado creado correctamente.',
+            'message' => 'Empleado creado correctamente.',
             'temp_password' => $request->password ?? $request->document_employee,
             'employee' => [
-                'document_employee'    => $employee->document_employee,
-                'name_1'               => $employee->name_1,
-                'name_2'               => $employee->name_2,
-                'last_name_1'          => $employee->last_name_1,
-                'last_name_2'          => $employee->last_name_2,
-                'phone_number'         => $employee->phone_number,
-                'email'                => $employee->email,
-                'type'                 => $employee->type,
-                'status'               => $employee->status,
-                'commission_percentage'=> $employee->commission_percentage,
-                'hire_date'            => $employee->hire_date,
-                'can_modify_invoice'   => $employee->can_modify_invoice,
+                'document_employee' => $employee->document_employee,
+                'name_1' => $employee->name_1,
+                'name_2' => $employee->name_2,
+                'last_name_1' => $employee->last_name_1,
+                'last_name_2' => $employee->last_name_2,
+                'phone_number' => $employee->phone_number,
+                'email' => $employee->email,
+                'type' => $employee->type,
+                'status' => $employee->status,
+                'commission_percentage' => $employee->commission_percentage,
+                'hire_date' => $employee->hire_date,
+                'can_modify_invoice' => $employee->can_modify_invoice,
             ],
         ], 201);
     }
@@ -125,24 +130,24 @@ class EmployeeController extends Controller
 
         $employee = Employee::find($id);
 
-        if (!$employee) {
+        if (! $employee) {
             return response()->json([
                 'message' => 'Empleado no encontrado.',
             ], 404);
         }
 
         $request->validate([
-            'name_1'               => 'sometimes|string|max:20',
-            'name_2'               => 'nullable|string|max:20',
-            'last_name_1'          => 'sometimes|string|max:20',
-            'last_name_2'          => 'nullable|string|max:20',
-            'phone_number'         => 'nullable|string|max:12',
-            'email'                => 'sometimes|email|max:50|unique:employee,email,' . $id . ',document_employee',
-            'password'             => 'nullable|string|min:6',
-            'type'                 => 'sometimes|in:A,V',
-            'commission_percentage'=> 'nullable|numeric|min:0|max:100',
-            'hire_date'            => 'nullable|date',
-            'can_modify_invoice'   => 'sometimes|in:S,N',
+            'name_1' => 'sometimes|string|max:20',
+            'name_2' => 'nullable|string|max:20',
+            'last_name_1' => 'sometimes|string|max:20',
+            'last_name_2' => 'nullable|string|max:20',
+            'phone_number' => 'nullable|string|max:12',
+            'email' => 'sometimes|email|max:50|unique:employee,email,'.$id.',document_employee',
+            'password' => 'nullable|string|min:6',
+            'type' => 'sometimes|in:A,V',
+            'commission_percentage' => 'nullable|numeric|min:0|max:100',
+            'hire_date' => 'nullable|date',
+            'can_modify_invoice' => 'sometimes|in:S,N',
         ]);
 
         $data = $request->only([
@@ -159,20 +164,20 @@ class EmployeeController extends Controller
         $employee->update($data);
 
         return response()->json([
-            'message'  => 'Empleado actualizado correctamente.',
+            'message' => 'Empleado actualizado correctamente.',
             'employee' => [
-                'document_employee'    => $employee->document_employee,
-                'name_1'               => $employee->name_1,
-                'name_2'               => $employee->name_2,
-                'last_name_1'          => $employee->last_name_1,
-                'last_name_2'          => $employee->last_name_2,
-                'phone_number'         => $employee->phone_number,
-                'email'                => $employee->email,
-                'type'                 => $employee->type,
-                'status'               => $employee->status,
-                'commission_percentage'=> $employee->commission_percentage,
-                'hire_date'            => $employee->hire_date,
-                'can_modify_invoice'   => $employee->can_modify_invoice,
+                'document_employee' => $employee->document_employee,
+                'name_1' => $employee->name_1,
+                'name_2' => $employee->name_2,
+                'last_name_1' => $employee->last_name_1,
+                'last_name_2' => $employee->last_name_2,
+                'phone_number' => $employee->phone_number,
+                'email' => $employee->email,
+                'type' => $employee->type,
+                'status' => $employee->status,
+                'commission_percentage' => $employee->commission_percentage,
+                'hire_date' => $employee->hire_date,
+                'can_modify_invoice' => $employee->can_modify_invoice,
             ],
         ], 200);
     }
@@ -188,7 +193,7 @@ class EmployeeController extends Controller
 
         $employee = Employee::find($id);
 
-        if (!$employee) {
+        if (! $employee) {
             return response()->json([
                 'message' => 'Empleado no encontrado.',
             ], 404);
@@ -198,16 +203,51 @@ class EmployeeController extends Controller
             'status' => 'required|in:A,I',
         ]);
 
-        $employee->update(['status' => $request->status]);
+        $newStatus = $request->status;
+        $released = [
+            'clients' => 0,
+            'routes' => 0,
+            'suggestions' => 0,
+        ];
+
+        if ($newStatus === 'I' && $employee->status !== 'I') {
+            DB::transaction(function () use ($employee, $newStatus, $request, &$released) {
+                $employee->tokens()->delete();
+
+                if ($employee->type === 'V') {
+                    $released['clients'] = Client::where('document_employee', $employee->document_employee)
+                        ->update(['document_employee' => null]);
+
+                    $released['routes'] = DeliveryRoute::where('document_employee', $employee->document_employee)
+                        ->delete();
+
+                    $released['suggestions'] = RouteSuggestion::where('document_employee', $employee->document_employee)
+                        ->where('status', 'P')
+                        ->update([
+                            'status' => 'R',
+                            'resolved_at' => now(),
+                            'resolved_by' => $request->user()->document_employee,
+                        ]);
+
+                    EmployeeLocation::where('document_employee', $employee->document_employee)
+                        ->update(['is_active' => false]);
+                }
+
+                $employee->update(['status' => $newStatus]);
+            });
+        } else {
+            $employee->update(['status' => $newStatus]);
+        }
 
         return response()->json([
             'message' => 'Estado del empleado actualizado correctamente.',
             'employee' => [
                 'document_employee' => $employee->document_employee,
-                'name_1'            => $employee->name_1,
-                'last_name_1'       => $employee->last_name_1,
-                'status'            => $employee->status,
+                'name_1' => $employee->name_1,
+                'last_name_1' => $employee->last_name_1,
+                'status' => $employee->status,
             ],
+            'released' => $released,
         ], 200);
     }
 }

@@ -46,9 +46,10 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::put('/products/{id}', [ProductController::class, 'update']);
     Route::patch('/products/{id}/status', [ProductController::class, 'changeStatus']);
 
-    // Clientes
+    // Clientes — mapa ANTES de {id}
     Route::get('/clients', [ClientController::class, 'index']);
     Route::post('/clients', [ClientController::class, 'store']);
+    Route::get('/clients/map', [ClientController::class, 'map']);
     Route::get('/clients/{id}', [ClientController::class, 'show']);
     Route::put('/clients/{id}', [ClientController::class, 'update']);
     Route::patch('/clients/{id}/status', [ClientController::class, 'changeStatus']);
@@ -74,6 +75,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     // Rutas de domiciliarios — rutas fijas ANTES de las dinámicas
     Route::get('/routes/navigate/{clientId}', [RouteController::class, 'navigate']);
     Route::post('/routes/distribute', [RouteController::class, 'distribute']);
+    Route::post('/routes/distribution/preview', [RouteController::class, 'distributionPreview']);
+    Route::post('/routes/distribution/apply', [RouteController::class, 'distributionApply']);
     Route::get('/routes', [RouteController::class, 'index']);
     Route::delete('/routes/{id}', [RouteController::class, 'destroy']);
 
