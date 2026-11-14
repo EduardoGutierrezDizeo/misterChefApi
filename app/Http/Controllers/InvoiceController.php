@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Invoice;
-use App\Models\Detail;
-use App\Models\Client;
-use App\Models\Product;
 use App\Models\AuditInvoice;
+use App\Models\Client;
+use App\Models\Detail;
+use App\Models\Invoice;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -44,7 +44,7 @@ class InvoiceController extends Controller
 
         $invoice = Invoice::with(['client', 'details.product', 'audits.employee'])->find($id);
 
-        if (!$invoice) {
+        if (! $invoice) {
             return response()->json(['message' => 'Factura no encontrada.'], 404);
         }
 
@@ -60,7 +60,7 @@ class InvoiceController extends Controller
     {
         $invoice = Invoice::find($id);
 
-        if (!$invoice) {
+        if (! $invoice) {
             return response()->json(['message' => 'Factura no encontrada.'], 404);
         }
 
@@ -76,15 +76,22 @@ class InvoiceController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'id_invoice'              => 'required|string|max:5|unique:invoice,id_invoice',
-            'id_client'               => 'required|string|exists:client,id_client',
-            'details'                 => 'required|array|min:1',
-            'details.*.id_product'    => 'required|string|exists:product,id_product',
-            'details.*.amount'        => 'required|numeric|min:1',
+            'id_invoice' => 'required|string|max:5|unique:invoice,id_invoice',
+            'id_client' => 'required|string|exists:client,id_client',
+            'details' => 'required|array|min:1',
+            'details.*.id_product' => 'required|string|exists:product,id_product',
+            'details.*.amount' => 'required|numeric|min:1',
         ]);
 
         $client = Client::find($request->id_client);
-        if (!$client->status) {
+
+        if ($request->user()->type === 'V' && $client->document_employee !== $request->user()->document_employee) {
+            return response()->json([
+                'message' => 'No tienes permiso para facturar a este cliente.',
+            ], 403);
+        }
+
+        if (! $client->status) {
             return response()->json([
                 'message' => 'No se puede crear una factura para un cliente inactivo.',
             ], 422);
@@ -93,26 +100,26 @@ class InvoiceController extends Controller
         $invoice = DB::transaction(function () use ($request) {
             $invoice = Invoice::create([
                 'id_invoice' => $request->id_invoice,
-                'date'       => now(),
-                'total'      => 0,
-                'status'     => 'P',
-                'id_client'  => $request->id_client,
+                'date' => now(),
+                'total' => 0,
+                'status' => 'P',
+                'id_client' => $request->id_client,
             ]);
 
             $total = 0;
             $lineNumber = 1;
 
             foreach ($request->details as $item) {
-                $product  = Product::find($item['id_product']);
+                $product = Product::find($item['id_product']);
                 $subtotal = $item['amount'] * $product->selling_price;
-                $total   += $subtotal;
+                $total += $subtotal;
 
                 Detail::create([
                     'line_number' => (string) $lineNumber,
-                    'amount'      => $item['amount'],
-                    'subtotal'    => $subtotal,
-                    'id_product'  => $item['id_product'],
-                    'id_invoice'  => $invoice->id_invoice,
+                    'amount' => $item['amount'],
+                    'subtotal' => $subtotal,
+                    'id_product' => $item['id_product'],
+                    'id_invoice' => $invoice->id_invoice,
                 ]);
 
                 $lineNumber++;
@@ -122,14 +129,14 @@ class InvoiceController extends Controller
 
             // Registrar auditoría
             AuditInvoice::create([
-                'id_audit'          => strtoupper(Str::random(10)),
-                'id_invoice'        => $invoice->id_invoice,
+                'id_audit' => strtoupper(Str::random(10)),
+                'id_invoice' => $invoice->id_invoice,
                 'document_employee' => request()->user()->document_employee,
-                'action_type'       => 'C',
-                'previous_status'   => null,
-                'new_status'        => 'P',
-                'previous_total'    => null,
-                'new_total'         => $total,
+                'action_type' => 'C',
+                'previous_status' => null,
+                'new_status' => 'P',
+                'previous_total' => null,
+                'new_total' => $total,
             ]);
 
             return $invoice;
@@ -148,7 +155,7 @@ class InvoiceController extends Controller
     {
         $invoice = Invoice::with('details.product')->find($id);
 
-        if (!$invoice) {
+        if (! $invoice) {
             return response()->json(['message' => 'Factura no encontrada.'], 404);
         }
 
@@ -177,14 +184,14 @@ class InvoiceController extends Controller
 
             // Registrar auditoría
             AuditInvoice::create([
-                'id_audit'          => strtoupper(Str::random(10)),
-                'id_invoice'        => $invoice->id_invoice,
+                'id_audit' => strtoupper(Str::random(10)),
+                'id_invoice' => $invoice->id_invoice,
                 'document_employee' => $request->user()->document_employee,
-                'action_type'       => 'M',
-                'previous_status'   => $previousStatus,
-                'new_status'        => 'C',
-                'previous_total'    => $invoice->total,
-                'new_total'         => $invoice->total,
+                'action_type' => 'M',
+                'previous_status' => $previousStatus,
+                'new_status' => 'C',
+                'previous_total' => $invoice->total,
+                'new_total' => $invoice->total,
             ]);
         });
 
@@ -201,22 +208,22 @@ class InvoiceController extends Controller
     public function stats(Request $request)
     {
         $employee = $request->user();
-        $today    = now()->toDateString();
- 
+        $today = now()->toDateString();
+
         // Las facturas se relacionan al empleado a través del cliente
         $query = Invoice::whereRaw('DATE(date) = ?', [$today]);
- 
+
         if ($employee->type === 'V') {
             $query->whereHas('client', function ($q) use ($employee) {
                 $q->where('document_employee', $employee->document_employee);
             });
         }
- 
+
         $invoices = $query->get();
- 
+
         return response()->json([
-            'total_pedidos'      => $invoices->count(),
-            'total_ventas'       => round($invoices->sum('total'), 2),
+            'total_pedidos' => $invoices->count(),
+            'total_ventas' => round($invoices->sum('total'), 2),
             'clientes_visitados' => $invoices->where('status', 'C')->count(),
         ], 200);
     }
@@ -234,7 +241,7 @@ class InvoiceController extends Controller
 
         $invoice = Invoice::with('details.product')->find($id);
 
-        if (!$invoice) {
+        if (! $invoice) {
             return response()->json(['message' => 'Factura no encontrada.'], 404);
         }
 
@@ -257,14 +264,14 @@ class InvoiceController extends Controller
 
             // Registrar auditoría
             AuditInvoice::create([
-                'id_audit'          => strtoupper(Str::random(10)),
-                'id_invoice'        => $invoice->id_invoice,
+                'id_audit' => strtoupper(Str::random(10)),
+                'id_invoice' => $invoice->id_invoice,
                 'document_employee' => $employee->document_employee,
-                'action_type'       => 'A',
-                'previous_status'   => $previousStatus,
-                'new_status'        => 'A',
-                'previous_total'    => $invoice->total,
-                'new_total'         => $invoice->total,
+                'action_type' => 'A',
+                'previous_status' => $previousStatus,
+                'new_status' => 'A',
+                'previous_total' => $invoice->total,
+                'new_total' => $invoice->total,
             ]);
         });
 

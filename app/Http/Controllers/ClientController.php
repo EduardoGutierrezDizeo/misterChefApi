@@ -3,7 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Client;
+use App\Models\DeliveryRoute;
+use App\Models\Employee;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ClientController extends Controller
 {
@@ -88,7 +92,10 @@ class ClientController extends Controller
     // POST /api/v1/clients
     public function store(Request $request)
     {
-        $request->validate([
+        $employee = $request->user();
+        $isAdmin = $employee->type === 'A';
+
+        $rules = [
             'client_name1' => 'required|string|max:25',
             'client_name2' => 'nullable|string|max:25',
             'client_last_name1' => 'required|string|max:25',
@@ -101,23 +108,43 @@ class ClientController extends Controller
             'status' => 'required|boolean',
             'id_departament' => 'required|string|exists:department,id_departament',
             'id_city' => 'required|string|exists:city,id_city',
-            'document_employee' => 'nullable|string|exists:employee,document_employee',
-        ]);
+            'document_employee' => 'nullable|string',
+        ];
+
+        if (! $isAdmin) {
+            // Se conserva el comportamiento actual para vendedores: el documento debe existir.
+            $rules['document_employee'] = 'nullable|string|exists:employee,document_employee';
+        }
+
+        $request->validate($rules);
+
+        $documentEmployee = $isAdmin
+            ? $request->input('document_employee')
+            : $employee->document_employee;
+
+        if ($documentEmployee !== null) {
+            $seller = Employee::find($documentEmployee);
+
+            if (! $seller || $seller->type !== 'V' || $seller->status !== 'A') {
+                return $this->invalidSellerResponse();
+            }
+        }
 
         $data = $request->all();
-
-        if ($request->user()->type === 'A' && $request->filled('document_employee')) {
-            $data['document_employee'] = $request->document_employee;
-        } else {
-            $data['document_employee'] = $request->user()->document_employee;
-        }
+        $data['document_employee'] = $documentEmployee;
 
         // Generar id_client automático: CLI001, CLI002, etc.
         $ultimo = Client::orderByRaw('CAST(SUBSTRING(id_client, 4) AS UNSIGNED) DESC')->first();
         $numero = $ultimo ? (int) substr($ultimo->id_client, 3) + 1 : 1;
         $data['id_client'] = 'CLI'.str_pad($numero, 3, '0', STR_PAD_LEFT);
 
-        $client = Client::create($data);
+        $client = DB::transaction(function () use ($data) {
+            $client = Client::create($data);
+            $this->syncClientRoute($client);
+
+            return $client;
+        });
+
         $client->load(['city', 'city.department', 'employee']);
 
         return response()->json([
@@ -141,7 +168,9 @@ class ClientController extends Controller
             return response()->json(['message' => 'No tienes permiso para actualizar este cliente.'], 403);
         }
 
-        $request->validate([
+        $isAdmin = $employee->type === 'A';
+
+        $rules = [
             'client_name1' => 'sometimes|string|max:25',
             'client_name2' => 'nullable|string|max:25',
             'client_last_name1' => 'sometimes|string|max:25',
@@ -153,13 +182,45 @@ class ClientController extends Controller
             'phone_number' => 'nullable|string|max:12',
             'id_departament' => 'sometimes|string|exists:department,id_departament',
             'id_city' => 'sometimes|string|exists:city,id_city',
-        ]);
+        ];
 
-        $client->update($request->only([
+        if ($isAdmin) {
+            $rules['document_employee'] = 'nullable|string';
+        }
+
+        $request->validate($rules);
+
+        $data = $request->only([
             'client_name1', 'client_name2', 'client_last_name1', 'client_last_name2',
             'business_name', 'address', 'longitude', 'latitude',
             'phone_number', 'id_departament', 'id_city',
-        ]));
+        ]);
+
+        $assignmentProvided = $isAdmin && array_key_exists('document_employee', $request->all());
+
+        if ($assignmentProvided) {
+            $documentEmployee = $request->input('document_employee');
+
+            if ($documentEmployee !== null && $documentEmployee !== $client->document_employee) {
+                $seller = Employee::find($documentEmployee);
+
+                if (! $seller || $seller->type !== 'V' || $seller->status !== 'A') {
+                    return $this->invalidSellerResponse();
+                }
+            }
+
+            $data['document_employee'] = $documentEmployee;
+        }
+
+        $client = DB::transaction(function () use ($client, $data, $assignmentProvided) {
+            $client->update($data);
+
+            if ($assignmentProvided) {
+                $this->syncClientRoute($client);
+            }
+
+            return $client;
+        });
 
         $client->load(['city', 'city.department', 'employee']);
 
@@ -182,11 +243,56 @@ class ClientController extends Controller
             'status' => 'required|boolean',
         ]);
 
-        $client->update(['status' => $request->status]);
+        $employee = $request->user();
+
+        if ($employee->type === 'V' && $client->document_employee !== $employee->document_employee) {
+            return response()->json(['message' => 'No tienes permiso para actualizar este cliente.'], 403);
+        }
+
+        $client = DB::transaction(function () use ($client, $request) {
+            $client->update(['status' => $request->status]);
+
+            if ($client->status) {
+                $this->syncClientRoute($client);
+            } else {
+                DeliveryRoute::where('id_client', $client->id_client)->delete();
+            }
+
+            return $client;
+        });
 
         return response()->json([
             'message' => 'Estado del cliente actualizado correctamente.',
             'client' => $client,
         ], 200);
+    }
+
+    // Reconciliar la tabla routes para un único cliente.
+    private function syncClientRoute(Client $client): void
+    {
+        DeliveryRoute::where('id_client', $client->id_client)->delete();
+
+        if (! $client->status || $client->document_employee === null) {
+            return;
+        }
+
+        $seller = Employee::find($client->document_employee);
+
+        if (! $seller || $seller->type !== 'V' || $seller->status !== 'A') {
+            return;
+        }
+
+        DeliveryRoute::create([
+            'id_ruta' => strtoupper(Str::random(8)),
+            'id_client' => $client->id_client,
+            'document_employee' => $client->document_employee,
+        ]);
+    }
+
+    private function invalidSellerResponse()
+    {
+        return response()->json([
+            'message' => 'El vendedor seleccionado no existe o no está activo.',
+        ], 422);
     }
 }

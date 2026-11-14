@@ -31,7 +31,9 @@ class RouteController extends Controller
             'employee' => function ($q) {
                 $q->select('document_employee', 'name_1', 'last_name_1', 'phone_number');
             },
-        ]);
+        ])->whereHas('client', function ($q) {
+            $q->where('status', true);
+        });
 
         if ($employee->type === 'V') {
             $query->where('document_employee', $employee->document_employee);
@@ -84,12 +86,28 @@ class RouteController extends Controller
             ->first();
 
         if (! $route) {
+            $inactiveClient = Client::whereKey($clientId)
+                ->where('document_employee', $employee->document_employee)
+                ->first();
+
+            if ($inactiveClient && ! $inactiveClient->status) {
+                return response()->json([
+                    'message' => 'Este cliente está desactivado.',
+                ], 422);
+            }
+
             return response()->json([
                 'message' => 'Este cliente no pertenece a tu ruta.',
             ], 403);
         }
 
         $client = $route->client;
+
+        if (! $client->status) {
+            return response()->json([
+                'message' => 'Este cliente está desactivado.',
+            ], 422);
+        }
 
         if (! $client->latitude || ! $client->longitude) {
             return response()->json([
